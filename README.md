@@ -33,6 +33,34 @@ npm run build
 npm start
 ```
 
+## Inferencia ONNX en frontend
+
+Esta app ejecuta inferencia en el navegador con `onnxruntime-web`.
+
+- Modelo ONNX: `public/models/individual_medical_cost_model.onnx`
+- Binarios WASM runtime: `public/onnx/`
+- Dependencia: `onnxruntime-web` (instalada via `npm install`)
+
+### Si cambias o actualizas el runtime de ONNX
+
+Recopia los binarios `.wasm` y `.mjs` desde `node_modules`:
+
+```powershell
+New-Item -ItemType Directory -Force -Path public/onnx | Out-Null
+Copy-Item node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.* public/onnx -Force
+```
+
+### Troubleshooting rapido
+
+- Error `no available backend found`:
+  - Verifica que existan archivos en `public/onnx/`.
+  - Reinicia `npm run dev` y haz hard refresh.
+- Warning `Unknown CPU vendor` en consola:
+  - Es warning del runtime WASM de ONNX; no bloquea la inferencia.
+- Si cambias el modelo y no se reflejan resultados:
+  - Reemplaza `public/models/individual_medical_cost_model.onnx`.
+  - Reinicia `npm run dev`.
+
 ## Nota si aparece error de lock en `.next/dev/lock`
 
 Eso pasa cuando ya hay otro `next dev` corriendo. Cierra esa terminal o finaliza el proceso, y vuelve a ejecutar:

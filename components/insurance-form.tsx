@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -23,7 +23,6 @@ import {
   RotateCcw,
   Calculator,
   ShieldCheck,
-  Info,
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,6 +67,8 @@ const NUMERIC_FIELD_CONFIG = {
 } as const;
 
 type NumericFieldKey = keyof typeof NUMERIC_FIELD_CONFIG;
+const MODEL_PATH = "./models/individual_medical_cost_model.onnx";
+const NEXT_BASE_PATH = process.env.__NEXT_ROUTER_BASEPATH ?? "";
 
 /** Sanitize a numeric string: no leading zeros, max 1 decimal digit */
 function sanitizeNumericInput(raw: string, allowDecimal: boolean): string {
@@ -113,12 +114,19 @@ export default function InsuranceForm() {
   const [form, setForm] = useState<FormState>({ ...DEFAULTS });
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [estimatedAnnualCost, setEstimatedAnnualCost] = useState<number | null>(
+    null
+  );
+  const [inferenceError, setInferenceError] = useState<string | null>(null);
+  const [isInferencing, setIsInferencing] = useState(false);
+  const sessionRef = useRef<import("onnxruntime-web").InferenceSession | null>(
+    null
+  );
 
   const update = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
       setTouched((prev) => ({ ...prev, [key]: true }));
-      setSubmitted(false);
     },
     []
   );
@@ -138,7 +146,6 @@ export default function InsuranceForm() {
       });
 
       setTouched((prev) => ({ ...prev, [field]: true }));
-      setSubmitted(false);
     },
     []
   );
@@ -173,16 +180,78 @@ export default function InsuranceForm() {
 
   const isValid = Object.keys(errors).length === 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const runInference = useCallback(async () => {
+    const ort = await import("onnxruntime-web");
+    ort.env.logLevel = "error";
+    ort.env.wasm.wasmPaths = `${NEXT_BASE_PATH}/onnx/`;
+
+    if (!sessionRef.current) {
+      sessionRef.current = await ort.InferenceSession.create(MODEL_PATH, {
+        executionProviders: ["wasm"],
+      });
+    }
+
+    const modelBmi = form.bmiMode === "calculate" ? computedBmi : bmiNum;
+
+    const feeds = {
+      age: new ort.Tensor("float32", Float32Array.of(form.age), [1, 1]),
+      bmi: new ort.Tensor("float32", Float32Array.of(modelBmi), [1, 1]),
+      children: new ort.Tensor("float32", Float32Array.of(form.children), [1, 1]),
+      sex: new ort.Tensor("string", [form.sex], [1, 1]),
+      smoker: new ort.Tensor("string", [form.smoker ? "yes" : "no"], [1, 1]),
+      region: new ort.Tensor("string", [form.region], [1, 1]),
+    };
+
+    const outputMap = await sessionRef.current.run(feeds);
+    const outputTensor = outputMap[sessionRef.current.outputNames[0]];
+    const firstValue = Number((outputTensor.data as ArrayLike<number>)[0]);
+
+    if (!Number.isFinite(firstValue)) {
+      throw new Error("Model output is not a finite number");
+    }
+
+    return firstValue;
+  }, [form, computedBmi, bmiNum]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
-    setSubmitted(true);
+    if (!isValid) {
+      setTouched({
+        age: true,
+        bmi: true,
+        heightCm: true,
+        weightKg: true,
+        region: true,
+      });
+      return;
+    }
+
+    setSubmitted(false);
+    setInferenceError(null);
+    setEstimatedAnnualCost(null);
+    setIsInferencing(true);
+
+    try {
+      const prediction = await runInference();
+      setEstimatedAnnualCost(prediction);
+      setSubmitted(true);
+    } catch (error) {
+      console.error(error);
+      setInferenceError(
+        "No se pudo ejecutar la inferencia del modelo. Revisa el archivo ONNX e intenta de nuevo."
+      );
+    } finally {
+      setIsInferencing(false);
+    }
   };
 
   const handleReset = () => {
     setForm({ ...DEFAULTS });
     setTouched({});
     setSubmitted(false);
+    setEstimatedAnnualCost(null);
+    setInferenceError(null);
+    setIsInferencing(false);
   };
 
   return (
@@ -503,26 +572,65 @@ export default function InsuranceForm() {
 
             {/* Acciones */}
             <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-              <Button type="submit" disabled={!isValid} className="flex-1 min-w-0">
+              <Button
+                type="submit"
+                disabled={!isValid || isInferencing}
+                className="flex-1 min-w-0"
+              >
                 <ShieldCheck className="size-4 shrink-0" />
-                <span className="truncate">Estimar Costo</span>
+                <span className="truncate">
+                  {isInferencing ? "Calculando..." : "Estimar Costo"}
+                </span>
               </Button>
               <Button type="button" variant="outline" onClick={handleReset} className="min-w-0 sm:w-auto">
                 <RotateCcw className="size-4 shrink-0" />
                 <span className="truncate">Reiniciar</span>
               </Button>
             </div>
+            {inferenceError && <FieldError message={inferenceError} />}
           </CardContent>
         </Card>
       </form>
 
       {/* Resultado */}
-      {submitted && <ResultCard />}
+      {submitted && estimatedAnnualCost !== null && (
+        <ResultCard
+          annualCost={estimatedAnnualCost}
+          isLoading={isInferencing}
+          error={inferenceError}
+        />
+      )}
     </div>
   );
 }
 
-function ResultCard() {
+function ResultCard({
+  annualCost,
+  isLoading,
+  error,
+}: {
+  annualCost: number | null;
+  isLoading: boolean;
+  error: string | null;
+}) {
+  const annualValue =
+    annualCost !== null
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(annualCost)
+      : "$\u2014";
+
+  const monthlyValue =
+    annualCost !== null
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 2,
+        }).format(annualCost / 12)
+      : "$\u2014";
+
   return (
     <Card className="border-primary/30 bg-primary/[0.03]">
       <CardHeader>
@@ -538,7 +646,7 @@ function ResultCard() {
               Costo Anual Estimado
             </p>
             <p className="text-3xl font-bold tracking-tight text-foreground">
-              {"$\u2014"}
+              {annualValue}
             </p>
           </div>
           <div className="rounded-lg bg-card border px-5 py-4 text-center">
@@ -546,10 +654,20 @@ function ResultCard() {
               Costo Mensual Estimado
             </p>
             <p className="text-3xl font-bold tracking-tight text-foreground">
-              {"$\u2014"}
+              {monthlyValue}
             </p>
           </div>
         </div>
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">
+            Ejecutando inferencia del modelo...
+          </p>
+        )}
+        {error && (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
