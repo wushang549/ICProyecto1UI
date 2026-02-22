@@ -57,4 +57,4 @@ Este repo ya incluye el workflow `/.github/workflows/deploy-pages.yml` para desp
 
 - Cada commit nuevo dispara el workflow y actualiza la pagina.
 - La URL final queda en:
-  - `https://w.github.io/<nombre-del-repo>/`
+  - `https://wushang549.github.io/ICProyecto1UI/`
