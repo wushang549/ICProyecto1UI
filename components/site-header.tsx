@@ -43,7 +43,7 @@ export default function SiteHeader() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold tracking-tight text-foreground leading-tight">
-              SeguroCost
+              PrimaUSA
             </span>
             <span className="text-[10px] font-medium text-muted-foreground leading-tight tracking-wide uppercase">
               Estimador

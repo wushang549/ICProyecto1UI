@@ -75,7 +75,7 @@ export default function Page() {
                 <ShieldCheck className="size-3.5" strokeWidth={2.2} />
               </div>
               <span className="text-sm font-semibold text-foreground">
-                SeguroCost
+                PrimaUSA
               </span>
             </div>
             <p className="text-xs text-muted-foreground text-center sm:text-right max-w-md">

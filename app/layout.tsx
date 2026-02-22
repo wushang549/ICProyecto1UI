@@ -5,7 +5,7 @@ import './globals.css'
 const geistSans = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'SeguroCost',
+  title: 'PrimaUSA',
   description: 'Estima tus costos anuales y mensuales de seguro basados en factores personales de salud.',
 }
 
