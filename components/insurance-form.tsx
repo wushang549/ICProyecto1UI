@@ -18,12 +18,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Minus,
   Plus,
+  ChevronUp,
+  ChevronDown,
   RotateCcw,
   Calculator,
   ShieldCheck,
   Info,
   AlertCircle,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import USRegionMap from "@/components/us-region-map";
 
 interface FormState {
@@ -57,6 +60,14 @@ const DEFAULTS: FormState = {
   smoker: false,
   region: "",
 };
+
+const NUMERIC_FIELD_CONFIG = {
+  bmi: { min: 10, max: 60, allowDecimal: true, fallback: 27.5 },
+  heightCm: { min: 120, max: 220, allowDecimal: false, fallback: 170 },
+  weightKg: { min: 30, max: 200, allowDecimal: false, fallback: 70 },
+} as const;
+
+type NumericFieldKey = keyof typeof NUMERIC_FIELD_CONFIG;
 
 /** Sanitize a numeric string: no leading zeros, max 1 decimal digit */
 function sanitizeNumericInput(raw: string, allowDecimal: boolean): string {
@@ -107,6 +118,26 @@ export default function InsuranceForm() {
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
       setTouched((prev) => ({ ...prev, [key]: true }));
+      setSubmitted(false);
+    },
+    []
+  );
+
+  const adjustNumericField = useCallback(
+    (field: NumericFieldKey, delta: number) => {
+      setForm((prev) => {
+        const config = NUMERIC_FIELD_CONFIG[field];
+        const current = Number.parseFloat(prev[field]);
+        const base = Number.isFinite(current) ? current : config.fallback;
+        const next = Math.min(config.max, Math.max(config.min, base + delta));
+        const normalized = config.allowDecimal
+          ? String(Math.round(next * 10) / 10)
+          : String(Math.round(next));
+
+        return { ...prev, [field]: normalized };
+      });
+
+      setTouched((prev) => ({ ...prev, [field]: true }));
       setSubmitted(false);
     },
     []
@@ -249,23 +280,44 @@ export default function InsuranceForm() {
                     <Label htmlFor="bmi-direct" className="sr-only">
                       Valor de IMC
                     </Label>
-                    <Input
-                      id="bmi-direct"
-                      type="text"
-                      inputMode="decimal"
-                      value={form.bmi}
-                      onChange={(e) => {
-                        const sanitized = sanitizeNumericInput(
-                          e.target.value,
-                          true
-                        );
-                        update("bmi", sanitized);
-                      }}
-                      onBlur={() =>
-                        setTouched((p) => ({ ...p, bmi: true }))
-                      }
-                      placeholder="ej. 27.5"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="bmi-direct"
+                        type="text"
+                        inputMode="decimal"
+                        className="pr-10"
+                        value={form.bmi}
+                        onChange={(e) => {
+                          const sanitized = sanitizeNumericInput(
+                            e.target.value,
+                            true
+                          );
+                          update("bmi", sanitized);
+                        }}
+                        onBlur={() =>
+                          setTouched((p) => ({ ...p, bmi: true }))
+                        }
+                        placeholder="ej. 27.5"
+                      />
+                      <div className="absolute inset-y-1 right-1 flex flex-col">
+                        <button
+                          type="button"
+                          className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          onClick={() => adjustNumericField("bmi", 1)}
+                          aria-label="Aumentar IMC en 1"
+                        >
+                          <ChevronUp className="size-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          onClick={() => adjustNumericField("bmi", -1)}
+                          aria-label="Disminuir IMC en 1"
+                        >
+                          <ChevronDown className="size-3" />
+                        </button>
+                      </div>
+                    </div>
                     {touched.bmi && <FieldError message={errors.bmi} />}
                   </div>
                 </TabsContent>
@@ -274,46 +326,88 @@ export default function InsuranceForm() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="height">Altura (cm)</Label>
-                      <Input
-                        id="height"
-                        type="text"
-                        inputMode="numeric"
-                        value={form.heightCm}
-                        onChange={(e) => {
-                          const sanitized = sanitizeNumericInput(
-                            e.target.value,
-                            false
-                          );
-                          update("heightCm", sanitized);
-                        }}
-                        onBlur={() =>
-                          setTouched((p) => ({ ...p, heightCm: true }))
-                        }
-                        placeholder="ej. 170"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="height"
+                          type="text"
+                          inputMode="numeric"
+                          className="pr-10"
+                          value={form.heightCm}
+                          onChange={(e) => {
+                            const sanitized = sanitizeNumericInput(
+                              e.target.value,
+                              false
+                            );
+                            update("heightCm", sanitized);
+                          }}
+                          onBlur={() =>
+                            setTouched((p) => ({ ...p, heightCm: true }))
+                          }
+                          placeholder="ej. 170"
+                        />
+                        <div className="absolute inset-y-1 right-1 flex flex-col">
+                          <button
+                            type="button"
+                            className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            onClick={() => adjustNumericField("heightCm", 1)}
+                            aria-label="Aumentar altura en 1 cm"
+                          >
+                            <ChevronUp className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            onClick={() => adjustNumericField("heightCm", -1)}
+                            aria-label="Disminuir altura en 1 cm"
+                          >
+                            <ChevronDown className="size-3" />
+                          </button>
+                        </div>
+                      </div>
                       {touched.heightCm && (
                         <FieldError message={errors.heightCm} />
                       )}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="weight">Peso (kg)</Label>
-                      <Input
-                        id="weight"
-                        type="text"
-                        inputMode="numeric"
-                        value={form.weightKg}
-                        onChange={(e) => {
-                          const sanitized = sanitizeNumericInput(
-                            e.target.value,
-                            false
-                          );
-                          update("weightKg", sanitized);
-                        }}
-                        onBlur={() =>
-                          setTouched((p) => ({ ...p, weightKg: true }))
-                        }
-                        placeholder="ej. 70"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="weight"
+                          type="text"
+                          inputMode="numeric"
+                          className="pr-10"
+                          value={form.weightKg}
+                          onChange={(e) => {
+                            const sanitized = sanitizeNumericInput(
+                              e.target.value,
+                              false
+                            );
+                            update("weightKg", sanitized);
+                          }}
+                          onBlur={() =>
+                            setTouched((p) => ({ ...p, weightKg: true }))
+                          }
+                          placeholder="ej. 70"
+                        />
+                        <div className="absolute inset-y-1 right-1 flex flex-col">
+                          <button
+                            type="button"
+                            className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            onClick={() => adjustNumericField("weightKg", 1)}
+                            aria-label="Aumentar peso en 1 kg"
+                          >
+                            <ChevronUp className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex h-3.5 w-6 items-center justify-center rounded-sm border border-border bg-background text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            onClick={() => adjustNumericField("weightKg", -1)}
+                            aria-label="Disminuir peso en 1 kg"
+                          >
+                            <ChevronDown className="size-3" />
+                          </button>
+                        </div>
+                      </div>
                       {touched.weightKg && (
                         <FieldError message={errors.weightKg} />
                       )}
@@ -339,7 +433,7 @@ export default function InsuranceForm() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="size-9"
+                  className="size-9 hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                   disabled={form.children <= 0}
                   onClick={() =>
                     update("children", Math.max(0, form.children - 1))
@@ -371,7 +465,14 @@ export default function InsuranceForm() {
             </div>
 
             {/* Fumador */}
-            <div className="flex items-center justify-between rounded-lg border bg-secondary/50 px-4 py-3">
+            <div
+              className={cn(
+                "flex items-center justify-between rounded-lg border px-4 py-3 transition-colors",
+                form.smoker
+                  ? "border-primary/35 bg-primary/10"
+                  : "bg-secondary/50"
+              )}
+            >
               <div className="flex flex-col gap-0.5">
                 <Label
                   htmlFor="smoker"
@@ -448,11 +549,6 @@ function ResultCard() {
               {"$\u2014"}
             </p>
           </div>
-        </div>
-        <div className="flex items-start gap-2 rounded-lg bg-secondary px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-          <Info className="size-4 mt-0.5 shrink-0 text-primary" />
-          Esta es una interfaz de demostración. Las estimaciones finales seran
-          proporcionadas por un modelo de ML.
         </div>
       </CardContent>
     </Card>
