@@ -48,3 +48,20 @@ El indicador flotante de Next.js en desarrollo fue desactivado en `next.config.m
 ```js
 devIndicators: false
 ```
+
+## Deploy automatico en GitHub Pages
+
+Este repo ya incluye el workflow `/.github/workflows/deploy-pages.yml` para desplegar en cada push a `main` o `master`.
+
+### Activarlo en GitHub (una sola vez)
+
+1. Entra al repo en GitHub.
+2. Ve a `Settings` -> `Pages`.
+3. En `Build and deployment`, selecciona `Source: GitHub Actions`.
+4. Haz push a `main` o `master`.
+
+### Resultado
+
+- Cada commit nuevo dispara el workflow y actualiza la pagina.
+- La URL final queda en:
+  - `https://<tu-usuario>.github.io/<nombre-del-repo>/`
