@@ -61,7 +61,7 @@ const DEFAULTS: FormState = {
 };
 
 const NUMERIC_FIELD_CONFIG = {
-  bmi: { min: 10, max: 60, allowDecimal: true, fallback: 27.5 },
+  bmi: { min: 15, max: 60, allowDecimal: true, fallback: 27.5 },
   heightCm: { min: 120, max: 220, allowDecimal: false, fallback: 170 },
   weightKg: { min: 30, max: 200, allowDecimal: false, fallback: 70 },
 } as const;
