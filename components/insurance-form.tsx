@@ -173,10 +173,12 @@ export default function InsuranceForm() {
         e.heightCm = "La altura debe estar entre 120 y 220 cm.";
       if (weightNum < 30 || weightNum > 200)
         e.weightKg = "El peso debe estar entre 30 y 200 kg.";
+      if (computedBmi < 15 || computedBmi > 60)
+        e.bmi = "El IMC calculado debe estar entre 15 y 60.";
     }
     if (!form.region) e.region = "Por favor selecciona una region.";
     return e;
-  }, [form, bmiNum, heightNum, weightNum]);
+  }, [form, bmiNum, heightNum, weightNum, computedBmi]);
 
   const isValid = Object.keys(errors).length === 0;
 
@@ -488,6 +490,9 @@ export default function InsuranceForm() {
                       {computedBmi}
                     </span>
                   </div>
+                  {(touched.heightCm || touched.weightKg || touched.bmi) && (
+                    <FieldError message={errors.bmi} />
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
