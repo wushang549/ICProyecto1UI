@@ -166,8 +166,8 @@ export default function InsuranceForm() {
     const e: ValidationErrors = {};
     if (form.age < 18 || form.age > 64)
       e.age = "La edad debe estar entre 18 y 64.";
-    if (form.bmiMode === "direct" && (bmiNum < 10 || bmiNum > 60))
-      e.bmi = "El IMC debe estar entre 10 y 60.";
+    if (form.bmiMode === "direct" && (bmiNum < 15 || bmiNum > 60))
+      e.bmi = "El IMC debe estar entre 15 y 60.";
     if (form.bmiMode === "calculate") {
       if (heightNum < 120 || heightNum > 220)
         e.heightCm = "La altura debe estar entre 120 y 220 cm.";
